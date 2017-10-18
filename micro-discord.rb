@@ -40,7 +40,8 @@ end
 
 get "/channel/" do
 	id = request.params["channelid"].to_i
-	timeline = bot.channel(id)
+	channel = bot.channel(id)
+	timeline = channel
 		.history(20)
 		.map{|msg|
 			data = msg.creation_time.strftime("%Y-%m-%d-%H:%M:%S")
@@ -48,6 +49,7 @@ get "/channel/" do
 			text = msg.text.gsub("\n"){"<br>"}.gsub(/\*\*(.*?)\*\*/){"<b>"+$1+"</b>"}
 			"<p>"+data+" : "+name+" : <span style=\"white-space: nowrap\">"+text+"</span></p>"}
 		.join("")
+	'<p><a href="/servers/">server select</a> <a href="/server/?serverid='+channel.server.id.to_s+'">channel select</a></p>'+
 	'<form method="post" action="/post/"><input type="hidden" name="channelid" value="'+id.to_s+'">'+
 		'<input type="text" name="text"><input type="submit"/></form>'+
 	"<div>"+timeline+"</div>"
