@@ -46,7 +46,10 @@ get "/server/" do
 		"<h1><a href=\"/servers/\">servers</a> &gt; #{server.name}</h1>"+
 			create_select_html("/channel/?channelid=",
 				server.channels.select{|c|c.type==0}
-					.map{|c|[c.id, c.name+((c.topic && !c.topic.empty?)? "<div style=\"margin-left: 3em;margin-top: -1em\">#{c.topic}</div>" : "")]}.to_h))
+					.map do |c|
+						topic = (c.topic.nil? || c.topic.empty?)? "" : "<div style=\"margin-left: 3em;margin-top: -1em\">#{c.topic.gsub(/\n+/){"<br>"}}</div>"
+						[c.id, c.name+topic]
+					end.to_h))
 end
 
 get "/channel/" do
