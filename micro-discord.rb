@@ -11,10 +11,9 @@ print "\n\n"
 require "sinatra"
 require "discordrb"
 
-def create_select_html select_name, action, option_html
-	'<form method="get" action="'+action+'">'+
-	'<select name="'+select_name+'" size="5">'+option_html+"</select>"+
-	'<input type="submit"/></form>'
+# param:hash {"id":value}
+def create_select_html to_uri, hash
+	hash.map{|key, value|'<p><a href="'+to_uri+key.to_s+'">'+value+'</a></p>'}.join("")
 end
 
 bot = Discordrb::Bot.new(
@@ -30,12 +29,18 @@ get "/" do
 end
 
 get "/servers/" do
-	create_select_html("serverid", "/server/", bot.servers.map{|s|"<option value=\"#{s[0]}\">"+s[1].name+"</option>"}.join)
+	"<h1>micro discord</h1>"+
+	create_select_html("/server/?serverid=", bot.servers.map{|s|[s[0], s[1].name]}.to_h)
 end
 
 get "/server/" do
 	id = request.params["serverid"].to_i
-	create_select_html("channelid", "/channel/", bot.server(id).channels.select{|c|c.type==0}.map{|c|"<option value=\"#{c.id}\">"+c.name+"</option>"}.join)
+	server = bot.server(id)
+	"<h1><a href=\"/servers/\">servers</a> / #{server.name}</h1>"+
+	create_select_html(
+		"/channel/?channelid=",
+		server.channels.select{|c|c.type==0}
+			.map{|c|[c.id, c.name+((c.topic && !c.topic.empty?)? "<div style=\"margin-left: 3em;margin-top: -1em\">#{c.topic}</div>" : "")]}.to_h)
 end
 
 get "/channel/" do
@@ -49,7 +54,8 @@ get "/channel/" do
 			text = msg.text.gsub("\n"){"<br>"}.gsub(/\*\*(.*?)\*\*/){"<b>"+$1+"</b>"}
 			"<p>"+data+" : "+name+" : <span style=\"white-space: nowrap\">"+text+"</span></p>"}
 		.join("")
-	'<p><a href="/servers/">server select</a> <a href="/server/?serverid='+channel.server.id.to_s+'">channel select</a></p>'+
+	"<h1><a href=\"/servers/\">servers</a> / <a href=\"/server/?serverid=#{channel.server.id.to_s}\">#{channel.server.name}</a> / "+
+		"#{channel.name}</h1>#{(channel.topic.nil?)? "" : "<p>#{channel.topic}</p>"}"+
 	'<form method="post" action="/post/"><input type="hidden" name="channelid" value="'+id.to_s+'">'+
 		'<input type="text" name="text"><input type="submit"/></form>'+
 	"<div>"+timeline+"</div>"
