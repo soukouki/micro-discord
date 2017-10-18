@@ -1,10 +1,12 @@
-# encoding: UTF-8
+﻿# encoding: UTF-8
 
-puts "micro_discord [token] [client_id] [ipaddr]\n"
+puts "micro_discord [token] [client_id] [ipaddr]"
 token = ARGV[0]
 client_id = ARGV[1].to_i
 ipaddr = ARGV[2]
-puts "http://#{ipaddr}:4567\n\n"
+puts "\nhttps://discordapp.com/oauth2/authorize?client_id=#{client_id}&scope=bot&permissions=3072"
+puts "\nhttp://#{ipaddr}:4567"
+print "\n\n"
 
 require "sinatra"
 require "discordrb"
