@@ -18,3 +18,7 @@ Simple Discord not to use javascript for
 ## others
 
 ローカルでサーバーを作り、Nintendo 3ds からもディスコードが見れる・投稿できるようになります。
+
+え、HTMLの形式がひどいってレベルじゃないって・・？
+
+うーん・・いつか直します・・・
