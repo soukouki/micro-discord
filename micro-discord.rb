@@ -12,7 +12,7 @@ require "discordrb"
 def create_select_html select_name, action, option_html
 	'<form method="get" action="'+action+'">'+
 	'<select name="'+select_name+'" size="5">'+option_html+"</select>"+
-	'<input type="submit" value="送信"/></form>'
+	'<input type="submit"/></form>'
 end
 
 bot = Discordrb::Bot.new(
@@ -47,7 +47,7 @@ get "/channel/" do
 			"<p>"+data+" : "+name+" : <span style=\"white-space: nowrap\">"+text+"</span></p>"}
 		.join("")
 	'<form method="post" action="/post/"><input type="hidden" name="channelid" value="'+id.to_s+'">'+
-		'<input type="text" name="text"><input type="submit" value="送信"/></form>'+
+		'<input type="text" name="text"><input type="submit"/></form>'+
 	"<div>"+timeline+"</div>"
 end
 
