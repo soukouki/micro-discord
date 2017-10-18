@@ -56,9 +56,9 @@ get "/channel/" do
 	id = request.params["channelid"].to_i
 	channel = bot.channel(id)
 	server = channel.server
-	timeline = channel
-		.history(20)
-		.map{|msg|
+	before_id = (request.params.keys.include?("beforeid"))? request.params["beforeid"] : nil
+	messages = channel.history(50, before_id=before_id)
+	timeline = messages.map{|msg|
 			data = msg.creation_time.strftime("%Y-%m-%d-%H:%M:%S")
 			name = msg.author.username
 			text = msg.text.gsub("\n"){"<br>"}.gsub(/\*\*(.*?)\*\*/){"<b>"+$1+"</b>"}
@@ -66,10 +66,10 @@ get "/channel/" do
 		.join("")
 	body_part(channel.name,
 		"<h1><a href=\"/servers/\">servers</a> &gt; <a href=\"/server/?serverid=#{server.id.to_s}\">#{server.name}</a> &gt; "+
-			"#{channel.name}</h1>#{(channel.topic.nil?)? "" : "<p>#{channel.topic}</p>"}"+
+			"<a href=\"/channel/?channelid=#{id}\">#{channel.name}</a></h1>#{(channel.topic.nil?)? "" : "<p>#{channel.topic}</p>"}"+
 		'<form method="post" action="/post/"><input type="hidden" name="channelid" value="'+id.to_s+'">'+
 			'<input type="text" name="text"><input type="submit"/></form>'+
-		"<div>"+timeline+"</div>")
+		"<div>#{timeline}</div><a href=\"/channel/?channelid=#{id}&beforeid=#{messages[-2].id}\">more</a>") # ひとつ前までさかのぼったほうがわかりやすいのではないか
 end
 
 post "/post/" do
