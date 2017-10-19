@@ -3,25 +3,22 @@ Simple Discord not to use javascript for
 
 ## usage
 
-(ipaddr = local ip addres)
+```shellscript
+gem install sinatra
+gem install discordrb
+gem install escape
+```
 
-`gem install sinatra`
+`https://discordapp.com/oauth2/authorize?client_id=[client id]&scope=bot&permissions=3072`
 
-`gem install discordrb`
+`ruby micro_discord.rb [bot token] [bot client_id] [local ip addres]`
 
-`https://discordapp.com/oauth2/authorize?client_id=[client-id]&scope=bot&permissions=3072`
+`http://[local ip addres]:4567`
 
-`ruby micro_discord.rb [token] [client_id] [ipaddr]`
-
-`http://[ipaddr]:4567`
 
 ## others
 
 ローカルでサーバーを作り、Nintendo 3ds からもディスコードが見れる・投稿できるようになります。
-
-え、HTMLの形式がひどいってレベルじゃないって・・？
-
-うーん・・いつか直します・・・
 
 ### 未処理エラー
 - 空文字列を投稿。

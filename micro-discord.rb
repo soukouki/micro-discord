@@ -11,6 +11,7 @@ print "\n\n"
 
 require "sinatra"
 require "discordrb"
+require "escape"
 
 
 
@@ -23,6 +24,13 @@ end
 # param:hash {"id":value}
 def create_select_html to_uri, hash
 	hash.map{|key, value|'<p><a href="'+to_uri+key.to_s+'">'+value+'</a></p>'}.join("")
+end
+
+# モンキーパッチなので、適用範囲を制限したほうが良いが、小さいプログラムなのでとりあえずこのままで。
+class String
+	def html_escape
+		Escape.html_text(self)
+	end
 end
 
 bot = Discordrb::Bot.new(
@@ -40,19 +48,20 @@ end
 get "/servers/" do
 	body_part("servers",
 		"<h1>micro discord</h1>"+
-		create_select_html("/server/?serverid=", bot.servers.map{|s|[s[0], s[1].name]}.to_h))
+		create_select_html("/server/?serverid=", bot.servers.map{|s|[s[0], s[1].name.html_escape]}.to_h))
 end
 
 get "/server/" do
 	id = request.params["serverid"].to_i
 	server = bot.server(id)
-	body_part(server.name,
-		"<h1><a href=\"/servers/\">servers</a> &gt; #{server.name}</h1>"+
+	body_part(server.name.html_escape,
+		"<h1><a href=\"/servers/\">servers</a> &gt; #{server.name.html_escape}</h1>"+
 			create_select_html("/channel/?channelid=",
 				server.channels.select{|c|c.type==0}
 					.map do |c|
-						topic = (c.topic.nil? || c.topic.empty?)? "" : "<div style=\"margin-left: 3em;margin-top: -1em\">#{c.topic.gsub(/\n+/){"<br>"}}</div>"
-						[c.id, c.name+topic]
+						topic = (c.topic.nil? || c.topic.empty?)? "" :
+							"<div style=\"margin-left: 3em;margin-top: -1em\">#{c.topic.html_escape.gsub(/\n+/){"<br>"}}</div>"
+						[c.id, c.name.html_escape+topic]
 					end.to_h))
 end
 
@@ -64,9 +73,10 @@ get "/channel/" do
 	messages = channel.history(50, before_id=before_id)
 	timeline = messages.map{|msg|
 			data = msg.creation_time.strftime("%Y-%m-%d-%H:%M:%S")
-			name = msg.author.username
+			name = msg.author.username.html_escape
 			not_slash = /(?<!\\)/
 			text = msg.text
+				.html_escape
 				.gsub("\t"){" "*8}.gsub(" "){"&nbsp;"}.gsub("\n"){"<br>"}
 				.gsub(/#{not_slash}\*\*(.+?)\*\*/){"<strong>#{$1}</strong>"}
 				.gsub(/#{not_slash}\*(.+?)\*/){"<em>#{$1}</em>"}
@@ -77,9 +87,9 @@ get "/channel/" do
 				.gsub(/\\([*_`])/){$1}
 			"<div style=\"margin-top: 0.5em;\">"+data+" : "+name+" : "+text+"</div>"}
 		.join("")
-	body_part(channel.name,
-		"<h1><a href=\"/servers/\">servers</a> &gt; <a href=\"/server/?serverid=#{server.id.to_s}\">#{server.name}</a> &gt; "+
-			"<a href=\"/channel/?channelid=#{id}\">#{channel.name}</a></h1>#{(channel.topic.nil?)? "" : "<p>#{channel.topic}</p>"}"+
+	body_part(channel.name.html_escape,
+		"<h1><a href=\"/servers/\">servers</a> &gt; <a href=\"/server/?serverid=#{server.id.to_s}\">#{server.name.html_escape}</a> &gt; "+
+			"<a href=\"/channel/?channelid=#{id}\">#{channel.name.html_escape}</a></h1>#{(channel.topic.nil?)? "" : "<p>#{channel.topic.html_escape}</p>"}"+
 		'<form method="post" action="/post/"><input type="hidden" name="channelid" value="'+id.to_s+'">'+
 			'<textarea name="text" rows="4" cols="59"></textarea><input type="submit"/></form>'+
 		"<div>#{timeline}</div><a href=\"/channel/?channelid=#{id}&beforeid=#{messages[-2].id}\">more</a>") # ひとつ前までさかのぼったほうがわかりやすいのではないか
