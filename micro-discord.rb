@@ -68,7 +68,10 @@ get "/channel/" do
 			not_slash = /(?<!\\)/
 			text = msg.text
 				.gsub("\t"){" "*8}.gsub(" "){"&nbsp;"}.gsub("\n"){"<br>"}
-				.gsub(/#{not_slash}\*\*(.+?)\*\*/){"<strong>#{$1}</strong>"}.gsub(/#{not_slash}\*(.+?)\*/){"<em>#{$1}</em>"}
+				.gsub(/#{not_slash}\*\*(.+?)\*\*/){"<strong>#{$1}</strong>"}
+				.gsub(/#{not_slash}\*(.+?)\*/){"<em>#{$1}</em>"}
+				.gsub(/#{not_slash}__(.+?)__/){"<u>#{$1}</u>"}
+				.gsub(/#{not_slash}~~(.+?)~~/){"<s>#{$1}</s>"}
 				.gsub(/#{not_slash}```((?:.|\s)+?)```/){"<pre><code>#{$1.gsub("<br>"){"\n"}.gsub("&nbsp;"){" "}}</code></pre>#{"&nbsp;"*4}"} # ここの実装微妙
 				.gsub(/#{not_slash}`(.+?)`/){" <tt>#{$1}</tt> "}
 				.gsub(/\\([*_`])/){$1}
