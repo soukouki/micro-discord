@@ -72,33 +72,32 @@ end
 # bodyタグではなく、timelineより下の部分が対象
 def cleate_channel_main_html channel, server, before_id
 	messages = channel.history(50, before_id = before_id)
-	timeline =
-	if messages.empty?
-		"<p>このチャンネルにはまだメッセージはありません。</p>"
-	else
-		next_link =
+	return "<p>このチャンネルにはまだメッセージはありません。</p>" if messages.empty?
+	
+	next_link =
 		if messages.length<50
 			"<p>これ以上遡れません</p>"
 		else
 			# `-2`で、最後のメッセージが最初に来るように
 			"<a href=/channel/?channelid=#{channel.id}&beforeid=#{(messages[-2])? messages[-2].id : messages[-1].id}>more</a>"
 		end
-		"<div>"+messages.map do |msg|
-			data = msg.creation_time.strftime("%Y-%m-%d-%H:%M:%S")
-			name = msg.author.username.html_escape
-			not_slash = /(?<!\\)/
-			text = msg.text.html_escape
-				.gsub("\t"){" "*8}.gsub(" "){"&nbsp;"}.gsub("\n"){"<br>"}
-				.gsub(/#{not_slash}\*\*(.+?)\*\*/){"<strong>#{$1}</strong>"}
-				.gsub(/#{not_slash}\*(.+?)\*/){"<em>#{$1}</em>"}
-				.gsub(/#{not_slash}__(.+?)__/){"<u>#{$1}</u>"}
-				.gsub(/#{not_slash}~~(.+?)~~/){"<s>#{$1}</s>"}
-				.gsub(/#{not_slash}```((?:.|\s)+?)```/){"<pre><code>#{$1.gsub("<br>"){"\n"}.gsub("&nbsp;"){" "}}</code></pre>#{"&nbsp;"*4}"} # ここの実装微妙
-				.gsub(/#{not_slash}`(.+?)`/){" <tt>#{$1}</tt> "}
-				.gsub(/\\([*_`])/){$1}
-			"<div style=\"margin-top: 0.5em;\">"+data+" : "+name+" : "+text+"</div>"
-		end.join("")+"</div>"+next_link
-	end
+	timeline = "<div>"+messages.map do |msg|
+		data = msg.creation_time.strftime("%Y-%m-%d-%H:%M:%S")
+		name = msg.author.username.html_escape
+		not_slash = /(?<!\\)/
+		text = msg.text.html_escape
+			.gsub("\t"){" "*8}.gsub(" "){"&nbsp;"}.gsub("\n"){"<br>"}
+			.gsub(/#{not_slash}\*\*(.+?)\*\*/){"<strong>#{$1}</strong>"}
+			.gsub(/#{not_slash}\*(.+?)\*/){"<em>#{$1}</em>"}
+			.gsub(/#{not_slash}__(.+?)__/){"<u>#{$1}</u>"}
+			.gsub(/#{not_slash}~~(.+?)~~/){"<s>#{$1}</s>"}
+			.gsub(/#{not_slash}```((?:.|\s)+?)```/){"<pre><code>#{$1.gsub("<br>"){"\n"}.gsub("&nbsp;"){" "}}</code></pre>#{"&nbsp;"*4}"} # ここの実装微妙
+			.gsub(/#{not_slash}`(.+?)`/){" <tt>#{$1}</tt> "}
+			.gsub(/\\([*_`])/){$1}
+		"<div style=\"margin-top: 0.5em;\">"+data+" : "+name+" : "+text+"</div>"
+	end.join("")+"</div>"
+	
+	timeline+next_link
 end
 
 get "/channel/" do
