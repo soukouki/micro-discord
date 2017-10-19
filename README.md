@@ -19,10 +19,3 @@ gem install escape
 ## others
 
 ローカルでサーバーを作り、Nintendo 3ds からもディスコードが見れる・投稿できるようになります。
-
-### 未処理エラー
-- 空文字列を投稿。
-- 何も書いていないチャンネルを開く。
-- beforeidが不正
-- channelidが不正
-- serveridが不正

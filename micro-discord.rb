@@ -53,7 +53,11 @@ end
 
 get "/server/" do
 	id = request.params["serverid"].to_i
-	server = bot.server(id)
+	begin
+		server = bot.server(id)
+	rescue Discordrb::Errors::NoPermission
+		redirect to("/servers/")
+	end
 	body_part(server.name.html_escape,
 		"<h1><a href=\"/servers/\">servers</a> &gt; #{server.name.html_escape}</h1>"+
 			create_select_html("/channel/?channelid=",
@@ -65,18 +69,25 @@ get "/server/" do
 					end.to_h))
 end
 
-get "/channel/" do
-	id = request.params["channelid"].to_i
-	channel = bot.channel(id)
-	server = channel.server
-	before_id = (request.params.keys.include?("beforeid"))? request.params["beforeid"] : nil
-	messages = channel.history(50, before_id=before_id)
-	timeline = messages.map{|msg|
+# bodyタグではなく、timelineより下の部分が対象
+def cleate_channel_main_html channel, server, before_id
+	messages = channel.history(50, before_id = before_id)
+	timeline =
+	if messages.empty?
+		"<p>このチャンネルにはまだメッセージはありません。</p>"
+	else
+		next_link =
+		if messages.length<50
+			"<p>これ以上遡れません</p>"
+		else
+			# `-2`で、最後のメッセージが最初に来るように
+			"<a href=/channel/?channelid=#{channel.id}&beforeid=#{(messages[-2])? messages[-2].id : messages[-1].id}>more</a>"
+		end
+		"<div>"+messages.map do |msg|
 			data = msg.creation_time.strftime("%Y-%m-%d-%H:%M:%S")
 			name = msg.author.username.html_escape
 			not_slash = /(?<!\\)/
-			text = msg.text
-				.html_escape
+			text = msg.text.html_escape
 				.gsub("\t"){" "*8}.gsub(" "){"&nbsp;"}.gsub("\n"){"<br>"}
 				.gsub(/#{not_slash}\*\*(.+?)\*\*/){"<strong>#{$1}</strong>"}
 				.gsub(/#{not_slash}\*(.+?)\*/){"<em>#{$1}</em>"}
@@ -85,18 +96,33 @@ get "/channel/" do
 				.gsub(/#{not_slash}```((?:.|\s)+?)```/){"<pre><code>#{$1.gsub("<br>"){"\n"}.gsub("&nbsp;"){" "}}</code></pre>#{"&nbsp;"*4}"} # ここの実装微妙
 				.gsub(/#{not_slash}`(.+?)`/){" <tt>#{$1}</tt> "}
 				.gsub(/\\([*_`])/){$1}
-			"<div style=\"margin-top: 0.5em;\">"+data+" : "+name+" : "+text+"</div>"}
-		.join("")
+			"<div style=\"margin-top: 0.5em;\">"+data+" : "+name+" : "+text+"</div>"
+		end.join("")+"</div>"+next_link
+	end
+end
+
+get "/channel/" do
+	id = request.params["channelid"].to_i
+	channel = bot.channel(id)
+	if channel.nil?
+		redirect to("/servers/")
+	end
+	server = channel.server
+	before_id = (request.params.keys.include?("beforeid"))? request.params["beforeid"] : nil
+	if !before_id.nil? &&  channel.load_message(before_id).nil?
+		redirect to("/channel/?channelid=#{id}")
+	end
+	main = cleate_channel_main_html(channel, server, before_id)
 	body_part(channel.name.html_escape,
 		"<h1><a href=\"/servers/\">servers</a> &gt; <a href=\"/server/?serverid=#{server.id.to_s}\">#{server.name.html_escape}</a> &gt; "+
 			"<a href=\"/channel/?channelid=#{id}\">#{channel.name.html_escape}</a></h1>#{(channel.topic.nil?)? "" : "<p>#{channel.topic.html_escape}</p>"}"+
 		'<form method="post" action="/post/"><input type="hidden" name="channelid" value="'+id.to_s+'">'+
-			'<textarea name="text" rows="4" cols="59"></textarea><input type="submit"/></form>'+
-		"<div>#{timeline}</div><a href=\"/channel/?channelid=#{id}&beforeid=#{messages[-2].id}\">more</a>") # ひとつ前までさかのぼったほうがわかりやすいのではないか
+			'<textarea name="text" rows="4" cols="59"></textarea><input type="submit"/></form>'+main)
 end
 
 post "/post/" do
 	id = request.params["channelid"].to_i
+	redirect to("/channel/?channelid=#{id}/") unless request.params.keys.include?("text")
 	text = request.params["text"]
 	bot.channel(id).send_message(text)
 	redirect to("/channel/?channelid=#{id}/")
