@@ -8,11 +8,15 @@ puts "\nhttps://discordapp.com/oauth2/authorize?client_id=#{client_id}&scope=bot
 puts "\nhttp://#{ipaddr}:4567"
 print "\n\n"
 
+
 require "sinatra"
 require "discordrb"
 
+
+
 def body_part title, body_html
-	"<!DOCTYPE html><html><head><meta charset=\"UTF-8\"><title>#{title}</title></head><body>"+
+	"<!DOCTYPE html><html><head>"+
+		"<meta charset=\"UTF-8\"><title>#{title}</title><link href=\"/style.css\" rel=\"stylesheet\" type=\"text/css\"></head><body>"+
 	body_html+"</body></html>"
 end
 
@@ -61,8 +65,14 @@ get "/channel/" do
 	timeline = messages.map{|msg|
 			data = msg.creation_time.strftime("%Y-%m-%d-%H:%M:%S")
 			name = msg.author.username
-			text = msg.text.gsub("\n"){"<br>"}.gsub(/\*\*(.*?)\*\*/){"<b>"+$1+"</b>"}
-			"<p>"+data+" : "+name+" : <span style=\"white-space: nowrap\">"+text+"</span></p>"}
+			not_slash = /(?<!\\)/
+			text = msg.text
+				.gsub("\t"){" "*8}.gsub(" "){"&nbsp;"}.gsub("\n"){"<br>"}
+				.gsub(/#{not_slash}\*\*(.+?)\*\*/){"<strong>#{$1}</strong>"}.gsub(/#{not_slash}\*(.+?)\*/){"<em>#{$1}</em>"}
+				.gsub(/#{not_slash}```((?:.|\s)+?)```/){"<pre><code>#{$1.gsub("<br>"){"\n"}.gsub("&nbsp;"){" "}}</code></pre>#{"&nbsp;"*4}"} # ここの実装微妙
+				.gsub(/#{not_slash}`(.+?)`/){" <tt>#{$1}</tt> "}
+				.gsub(/\\([*_`])/){$1}
+			"<div style=\"margin-top: 0.5em;\">"+data+" : "+name+" : "+text+"</div>"}
 		.join("")
 	body_part(channel.name,
 		"<h1><a href=\"/servers/\">servers</a> &gt; <a href=\"/server/?serverid=#{server.id.to_s}\">#{server.name}</a> &gt; "+
@@ -77,4 +87,12 @@ post "/post/" do
 	text = request.params["text"]
 	bot.channel(id).send_message(text)
 	redirect to("/channel/?channelid=#{id}/")
+end
+
+get "/style.css" do
+	[200, {"Content-Type" => "text/css"},
+		"body{white-space: nowrap;}"+
+		"em{font-style:oblique;}"+
+		'tt,code{font-family:Consolas,Liberation Mono,Menlo,Courier,monospace;font-size:85%;}'+
+		'pre{margin-left: 2em;}']
 end
