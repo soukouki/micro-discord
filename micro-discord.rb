@@ -81,7 +81,7 @@ get "/channel/" do
 		"<h1><a href=\"/servers/\">servers</a> &gt; <a href=\"/server/?serverid=#{server.id.to_s}\">#{server.name}</a> &gt; "+
 			"<a href=\"/channel/?channelid=#{id}\">#{channel.name}</a></h1>#{(channel.topic.nil?)? "" : "<p>#{channel.topic}</p>"}"+
 		'<form method="post" action="/post/"><input type="hidden" name="channelid" value="'+id.to_s+'">'+
-			'<input type="text" name="text"><input type="submit"/></form>'+
+			'<textarea name="text" rows="4" cols="59"></textarea><input type="submit"/></form>'+
 		"<div>#{timeline}</div><a href=\"/channel/?channelid=#{id}&beforeid=#{messages[-2].id}\">more</a>") # ひとつ前までさかのぼったほうがわかりやすいのではないか
 end
 
@@ -90,6 +90,10 @@ post "/post/" do
 	text = request.params["text"]
 	bot.channel(id).send_message(text)
 	redirect to("/channel/?channelid=#{id}/")
+end
+
+not_found do
+	body_part("404 not found", "<h1>404 not found</h1>このurlは間違っています。<a href=\"/\">top</a>")
 end
 
 get "/style.css" do
