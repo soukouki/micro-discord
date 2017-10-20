@@ -16,14 +16,15 @@ require "escape"
 
 
 def body_part title, body_html
-	"<!DOCTYPE html><html><head>"+
+	"<!DOCTYPE html><html lang=\"ja\"><head>"+
 		"<meta charset=\"UTF-8\"><title>#{title}</title><link href=\"/style.css\" rel=\"stylesheet\" type=\"text/css\"></head><body>"+
 	body_html+"</body></html>"
 end
 
 # param:hash {"id":value}
 def create_select_html to_uri, hash
-	hash.map{|key, value|'<p><a href="'+to_uri+key.to_s+'">'+value+'</a></p>'}.join("")
+	'<div class="select-list">'+
+		hash.map{|key, value|'<a href="'+to_uri+key.to_s+'">'+value+'</a><br>'}.join("")+"</div>"
 end
 
 # モンキーパッチなので、適用範囲を制限したほうが良いが、小さいプログラムなのでとりあえずこのままで。
@@ -64,7 +65,7 @@ get "/server/" do
 				server.text_channels
 					.map do |c|
 						topic = (c.topic.nil? || c.topic.empty?)? "" :
-							"<div style=\"margin-left: 3em;margin-top: -1em\">#{c.topic.html_escape.gsub(/\n+/){"<br>"}}</div>"
+							"<div class=\"server-topic\">#{c.topic.html_escape.gsub(/\n+/){"<br>"}}</div>"
 						[c.id, c.name.html_escape+topic]
 					end.to_h))
 end
@@ -93,7 +94,7 @@ def cleate_channel_main_html channel, server, before_id
 			.gsub(/#{not_slash}\*(.+?)\*/){"<em>#{$1}</em>"}
 			.gsub(/#{not_slash}__(.+?)__/){"<u>#{$1}</u>"}
 			.gsub(/#{not_slash}~~(.+?)~~/){"<s>#{$1}</s>"}
-			.gsub(/#{not_slash}```((?:.|\s)+?)```/){"<pre><code>#{$1.gsub("<br>"){"\n"}.gsub("&nbsp;"){" "}}</code></pre>#{"&nbsp;"*4}"} # ここの実装微妙
+			.gsub(/#{not_slash}```((?:.|\s)+?)```/){"<div class=\"code-box\"><pre><code>#{$1.gsub("<br>"){"\n"}.gsub("&nbsp;"){" "}}</code></pre></div>"} # ここの実装微妙
 			.gsub(/#{not_slash}`(.+?)`/){" <tt>#{$1}</tt> "}
 			.gsub(/\\([*_`~])/){$1}
 		"<div style=\"margin-top: 0.5em;\">"+data+" : "+name+" : "+text+"</div>"
@@ -104,7 +105,7 @@ def cleate_channel_main_html channel, server, before_id
 			"<p>これ以上遡れません</p>"
 		else
 			# `-2`で、最後のメッセージが最初に来るように
-			"<a href=/channel/?channelid=#{channel.id}&beforeid=#{(messages[-2])? messages[-2].id : messages[-1].id}>more</a>"
+			"<a href=\"/channel/?channelid=#{channel.id}&beforeid=#{(messages[-2])? messages[-2].id : messages[-1].id}\">more</a>"
 		end
 	
 	post_form+timeline+next_link
@@ -148,10 +149,20 @@ not_found do
 	body_part("404 not found", "<h1>404 not found</h1>このurlは間違っています。<a href=\"/\">top</a>")
 end
 
+# デザイン初心者です。いいデザイン案があるなら、https://github.com/soukouki/micro-discord にプルリクエストをください。
 get "/style.css" do
-	[200, {"Content-Type" => "text/css"},
-		"body{white-space: nowrap;}"+
-		"em{font-style:oblique;}"+
-		'tt,code{font-family:Consolas,Liberation Mono,Menlo,Courier,monospace;font-size:85%;}'+
-		'pre{margin-left: 2em;}']
+	[200, {"Content-Type" => "text/css"}, <<"EOS"
+
+body { background:#111; color:#eee;}
+a {color:#66f;}
+em {font-style:oblique;}
+pre {margin-left: 2em;}
+textarea {background:#333; color:#eee;}
+tt,code {font-family:Consolas,Liberation Mono,Menlo,Courier,monospace;font-size:85%;}
+tt,.code-box {border: 1px solid #555;}
+.select-list {margin:1em}
+.server-topic {margin-left:3em; margin-top:0em}
+
+EOS
+]
 end
