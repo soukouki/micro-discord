@@ -3,11 +3,7 @@ Simple Discord not to use javascript for
 
 ## usage
 
-```shellscript
-gem install sinatra
-gem install discordrb
-gem install escape
-```
+`gem install discordrb sinatra escape`
 
 `https://discordapp.com/oauth2/authorize?client_id=[client id]&scope=bot&permissions=3072`
 

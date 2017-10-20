@@ -61,7 +61,7 @@ get "/server/" do
 	body_part(server.name.html_escape,
 		"<h1><a href=\"/servers/\">servers</a> &gt; #{server.name.html_escape}</h1>"+
 			create_select_html("/channel/?channelid=",
-				server.channels.select{|c|c.type==0}
+				server.text_channels
 					.map do |c|
 						topic = (c.topic.nil? || c.topic.empty?)? "" :
 							"<div style=\"margin-left: 3em;margin-top: -1em\">#{c.topic.html_escape.gsub(/\n+/){"<br>"}}</div>"
@@ -71,16 +71,18 @@ end
 
 # bodyタグではなく、timelineより下の部分が対象
 def cleate_channel_main_html channel, server, before_id
-	messages = channel.history(50, before_id = before_id)
-	return "<p>このチャンネルにはまだメッセージはありません。</p>" if messages.empty?
+	begin
+		messages = channel.history(50, before_id = before_id)
+	rescue Discordrb::Errors::NoPermission
+		return "<p>このチャンネルを見る権限がありません</p>"
+	end
 	
-	next_link =
-		if messages.length<50
-			"<p>これ以上遡れません</p>"
-		else
-			# `-2`で、最後のメッセージが最初に来るように
-			"<a href=/channel/?channelid=#{channel.id}&beforeid=#{(messages[-2])? messages[-2].id : messages[-1].id}>more</a>"
-		end
+	
+	post_form = '<form method="post" action="/post/"><input type="hidden" name="channelid" value="'+channel.id.to_s+'">'+
+		'<textarea name="text" rows="4" cols="59"></textarea><input type="submit"/></form>'
+		
+	return post_form+"<p>このチャンネルにはまだメッセージはありません。</p>" if messages.empty?
+	
 	timeline = "<div>"+messages.map do |msg|
 		data = msg.creation_time.strftime("%Y-%m-%d-%H:%M:%S")
 		name = msg.author.username.html_escape
@@ -93,11 +95,19 @@ def cleate_channel_main_html channel, server, before_id
 			.gsub(/#{not_slash}~~(.+?)~~/){"<s>#{$1}</s>"}
 			.gsub(/#{not_slash}```((?:.|\s)+?)```/){"<pre><code>#{$1.gsub("<br>"){"\n"}.gsub("&nbsp;"){" "}}</code></pre>#{"&nbsp;"*4}"} # ここの実装微妙
 			.gsub(/#{not_slash}`(.+?)`/){" <tt>#{$1}</tt> "}
-			.gsub(/\\([*_`])/){$1}
+			.gsub(/\\([*_`~])/){$1}
 		"<div style=\"margin-top: 0.5em;\">"+data+" : "+name+" : "+text+"</div>"
 	end.join("")+"</div>"
 	
-	timeline+next_link
+	next_link =
+		if messages.length<50
+			"<p>これ以上遡れません</p>"
+		else
+			# `-2`で、最後のメッセージが最初に来るように
+			"<a href=/channel/?channelid=#{channel.id}&beforeid=#{(messages[-2])? messages[-2].id : messages[-1].id}>more</a>"
+		end
+	
+	post_form+timeline+next_link
 end
 
 get "/channel/" do
@@ -115,15 +125,22 @@ get "/channel/" do
 	body_part(channel.name.html_escape,
 		"<h1><a href=\"/servers/\">servers</a> &gt; <a href=\"/server/?serverid=#{server.id.to_s}\">#{server.name.html_escape}</a> &gt; "+
 			"<a href=\"/channel/?channelid=#{id}\">#{channel.name.html_escape}</a></h1>#{(channel.topic.nil?)? "" : "<p>#{channel.topic.html_escape}</p>"}"+
-		'<form method="post" action="/post/"><input type="hidden" name="channelid" value="'+id.to_s+'">'+
-			'<textarea name="text" rows="4" cols="59"></textarea><input type="submit"/></form>'+main)
+		+main)
 end
 
 post "/post/" do
 	id = request.params["channelid"].to_i
-	redirect to("/channel/?channelid=#{id}/") unless request.params.keys.include?("text")
+	channel = bot.channel(id)
+	redirect to("/servers/") if channel.nil?
 	text = request.params["text"]
-	bot.channel(id).send_message(text)
+	if text.empty?
+		redirect to("/channel/?channelid=#{id}/")
+	end
+	begin
+		channel.send_message(text)
+	rescue Discordrb::Errors::NoPermission
+		return body_part("NoParmission Error", "<p>投稿する権限がありません。</p><a href=\"/channel/?channelid=#{id}\">#{channel.name.html_escape}")
+	end
 	redirect to("/channel/?channelid=#{id}/")
 end
 
