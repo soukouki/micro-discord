@@ -13,6 +13,8 @@ require "sinatra"
 require "discordrb"
 require "escape"
 
+require "strscan"
+
 
 
 def body_part title, body_html
@@ -70,47 +72,6 @@ get "/server/" do
 					end.to_h))
 end
 
-# bodyタグではなく、timelineより下の部分が対象
-def cleate_channel_main_html channel, server, before_id
-	begin
-		messages = channel.history(50, before_id = before_id)
-	rescue Discordrb::Errors::NoPermission
-		return "<p>このチャンネルを見る権限がありません</p>"
-	end
-	
-	
-	post_form = '<form method="post" action="/post/"><input type="hidden" name="channelid" value="'+channel.id.to_s+'">'+
-		'<textarea name="text" rows="4" cols="59"></textarea><input type="submit"/></form>'
-		
-	return post_form+"<p>このチャンネルにはまだメッセージはありません。</p>" if messages.empty?
-	
-	timeline = "<div>"+messages.map do |msg|
-		data = msg.creation_time.strftime("%Y-%m-%d-%H:%M:%S")
-		name = msg.author.username.html_escape
-		not_slash = /(?<!\\)/
-		text = msg.text.html_escape
-			.gsub("\t"){" "*8}.gsub(" "){"&nbsp;"}.gsub("\n"){"<br>"}
-			.gsub(/#{not_slash}\*\*(.+?)\*\*/){"<strong>#{$1}</strong>"}
-			.gsub(/#{not_slash}\*(.+?)\*/){"<em>#{$1}</em>"}
-			.gsub(/#{not_slash}__(.+?)__/){"<u>#{$1}</u>"}
-			.gsub(/#{not_slash}~~(.+?)~~/){"<s>#{$1}</s>"}
-			.gsub(/#{not_slash}```((?:.|\s)+?)```/){"<div class=\"code-box\"><pre><code>#{$1.gsub("<br>"){"\n"}.gsub("&nbsp;"){" "}}</code></pre></div>"} # ここの実装微妙
-			.gsub(/#{not_slash}`(.+?)`/){" <tt>#{$1}</tt> "}
-			.gsub(/\\([*_`~])/){$1}
-		"<div style=\"margin-top: 0.5em;\">"+data+" : "+name+" : "+text+"</div>"
-	end.join("")+"</div>"
-	
-	next_link =
-		if messages.length<50
-			"<p>これ以上遡れません</p>"
-		else
-			# `-2`で、最後のメッセージが最初に来るように
-			"<a href=\"/channel/?channelid=#{channel.id}&beforeid=#{(messages[-2])? messages[-2].id : messages[-1].id}\">more</a>"
-		end
-	
-	post_form+timeline+next_link
-end
-
 get "/channel/" do
 	id = request.params["channelid"].to_i
 	channel = bot.channel(id)
@@ -127,6 +88,67 @@ get "/channel/" do
 		"<h1><a href=\"/servers/\">servers</a> &gt; <a href=\"/server/?serverid=#{server.id.to_s}\">#{server.name.html_escape}</a> &gt; "+
 			"<a href=\"/channel/?channelid=#{id}\">#{channel.name.html_escape}</a></h1>#{(channel.topic.nil?)? "" : "<p>#{channel.topic.html_escape}</p>"}"+
 		+main)
+end
+
+def cleate_channel_main_html channel, server, before_id
+	begin
+		messages = channel.history(50, before_id = before_id)
+	rescue Discordrb::Errors::NoPermission
+		return "<p>このチャンネルを見る権限がありません</p>"
+	end
+	
+	post_form = '<form method="post" action="/post/"><input type="hidden" name="channelid" value="'+channel.id.to_s+'">'+
+		'<textarea name="text" rows="4" cols="59"></textarea><input type="submit"/></form>'
+		
+	return post_form+"<p>このチャンネルにはまだメッセージはありません。</p>" if messages.empty?
+	
+	timeline = "<div>"+messages.map do |msg|
+		data = msg.creation_time.strftime("%Y-%m-%d-%H:%M:%S")
+		name = msg.author.username.html_escape
+		text = markup(msg.text.html_escape)
+		"<div style=\"margin-top: 0.5em;\">"+data+" : "+name+" : "+text+"</div>"
+	end.join("")+"</div>"
+	
+	next_link =
+		if messages.length<50
+			"<p>これ以上遡れません</p>"
+		else
+			# `-2`で、最後のメッセージが最初に来るように
+			"<a href=\"/channel/?channelid=#{channel.id}&beforeid=#{(messages[-2])? messages[-2].id : messages[-1].id}\">more</a>"
+		end
+	
+	post_form+timeline+next_link
+end
+
+# ```__***~~test~~***__``` こんなのに備えて。
+def markup markdown
+	html = ""
+	s = StringScanner.new(markdown)
+	not_slash = /(?<!\\)/
+	multi_line = /(?:.|\n)/
+	single_backquote = /(?<!`)`(?!`)/
+	until s.empty?
+		html += case
+		when s.scan(/#{not_slash}```(#{multi_line}+?)```/)
+			'<div class="code-box"><pre><code>'+s[1]+"</code></pre></div>"
+		when s.scan(/#{not_slash}#{single_backquote}(.+?)#{single_backquote}/)
+			"<tt>#{s[1]}</tt>"
+		when s.scan(/(#{multi_line}+?)(?=#{not_slash}`|\z)/)
+			markup_nonblock(s[1])
+		end
+	end
+	html
+end
+
+def markup_nonblock markdown
+	not_slash = /(?<!\\)/
+	markdown
+		.gsub("\t"){" "*8}.gsub(" "){"&nbsp;"}.gsub("\n"){"<br>"}
+		.gsub(/#{not_slash}\*\*(.+?)\*\*/){"<strong>#{$1}</strong>"}
+		.gsub(/#{not_slash}\*(.+?)\*/){"<em>#{$1}</em>"}
+		.gsub(/#{not_slash}__(.+?)__/){"<u>#{$1}</u>"}
+		.gsub(/#{not_slash}~~(.+?)~~/){"<s>#{$1}</s>"}
+		.gsub(/\\([*_`~])/){$1}
 end
 
 post "/post/" do
@@ -154,7 +176,7 @@ get "/style.css" do
 	[200, {"Content-Type" => "text/css"}, <<"EOS"
 
 body { background:#111; color:#eee;}
-a {color:#66f;}
+a {color:#0af;}
 em {font-style:oblique;}
 pre {margin-left: 2em;}
 textarea {background:#333; color:#eee;}
