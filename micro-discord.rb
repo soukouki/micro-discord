@@ -86,7 +86,8 @@ get "/channel/" do
 	main = cleate_channel_main_html(channel, server, before_id)
 	body_part(channel.name.html_escape,
 		"<h1><a href=\"/servers/\">servers</a> &gt; <a href=\"/server/?serverid=#{server.id.to_s}\">#{server.name.html_escape}</a> &gt; "+
-			"<a href=\"/channel/?channelid=#{id}\">#{channel.name.html_escape}</a></h1>#{(channel.topic.nil?)? "" : "<p>#{channel.topic.html_escape}</p>"}"+
+			"<a href=\"/channel/?channelid=#{id}\">#{channel.name.html_escape}</a></h1>"+
+				"#{(channel.topic.nil?)? "" : "<p>#{channel.topic.html_escape}</p>"}"+
 		+main)
 end
 
@@ -122,18 +123,18 @@ end
 
 # ```__***~~test~~***__``` こんなのに備えて。
 def markup markdown
-	html = ""
 	s = StringScanner.new(markdown)
 	not_slash = /(?<!\\)/
-	multi_line = /(?:.|\n)/
+	multi_line = /(?:.|\n)+?/
 	single_backquote = /(?<!`)`(?!`)/
+	html = ""
 	until s.empty?
 		html += case
 		when s.scan(/#{not_slash}```(#{multi_line}+?)```/)
 			'<div class="code-box"><pre><code>'+s[1]+"</code></pre></div>"
 		when s.scan(/#{not_slash}#{single_backquote}(.+?)#{single_backquote}/)
 			"<tt>#{s[1]}</tt>"
-		when s.scan(/(#{multi_line}+?)(?=#{not_slash}`|\z)/)
+		when s.scan(/(#{multi_line})(?=#{not_slash}`|\z)/)
 			markup_nonblock(s[1])
 		end
 	end
@@ -141,19 +142,39 @@ def markup markdown
 end
 
 def markup_nonblock markdown
-	not_slash = /(?<!\\)/
 	# http://sinya8282.sakura.ne.jp/?p=1064 より
 	
 	url_regexp =  '[a-z][-+.0-9a-z]*:(//(([-.0-9_a-z~]|%[0-9a-f][0-9a-f]|[!$&-,:;=])*@)?(\[(([0-9a-f]{1,4}:){6}([0-9a-f]{1,4}:[0-9a-f]{1,4}|(\d|[1-9]\d|1\d{2}|2[0-4]\d|25[0-5])\.(\d|[1-9]\d|1\d{2}|2[0-4]\d|25[0-5])\.(\d|[1-9]\d|1\d{2}|2[0-4]\d|25[0-5])\.(\d|[1-9]\d|1\d{2}|2[0-4]\d|25[0-5]))|::([0-9a-f]{1,4}:){5}([0-9a-f]{1,4}:[0-9a-f]{1,4}|(\d|[1-9]\d|1\d{2}|2[0-4]\d|25[0-5])\.(\d|[1-9]\d|1\d{2}|2[0-4]\d|25[0-5])\.(\d|[1-9]\d|1\d{2}|2[0-4]\d|25[0-5])\.(\d|[1-9]\d|1\d{2}|2[0-4]\d|25[0-5]))|([0-9a-f]{1,4})?::([0-9a-f]{1,4}:){4}([0-9a-f]{1,4}:[0-9a-f]{1,4}|(\d|[1-9]\d|1\d{2}|2[0-4]\d|25[0-5])\.(\d|[1-9]\d|1\d{2}|2[0-4]\d|25[0-5])\.(\d|[1-9]\d|1\d{2}|2[0-4]\d|25[0-5])\.(\d|[1-9]\d|1\d{2}|2[0-4]\d|25[0-5]))|(([0-9a-f]{1,4}:)?[0-9a-f]{1,4})?::([0-9a-f]{1,4}:){3}([0-9a-f]{1,4}:[0-9a-f]{1,4}|(\d|[1-9]\d|1\d{2}|2[0-4]\d|25[0-5])\.(\d|[1-9]\d|1\d{2}|2[0-4]\d|25[0-5])\.(\d|[1-9]\d|1\d{2}|2[0-4]\d|25[0-5])\.(\d|[1-9]\d|1\d{2}|2[0-4]\d|25[0-5]))|(([0-9a-f]{1,4}:){0,2}[0-9a-f]{1,4})?::([0-9a-f]{1,4}:){2}([0-9a-f]{1,4}:[0-9a-f]{1,4}|(\d|[1-9]\d|1\d{2}|2[0-4]\d|25[0-5])\.(\d|[1-9]\d|1\d{2}|2[0-4]\d|25[0-5])\.(\d|[1-9]\d|1\d{2}|2[0-4]\d|25[0-5])\.(\d|[1-9]\d|1\d{2}|2[0-4]\d|25[0-5]))|(([0-9a-f]{1,4}:){0,3}[0-9a-f]{1,4})?::[0-9a-f]{1,4}:([0-9a-f]{1,4}:[0-9a-f]{1,4}|(\d|[1-9]\d|1\d{2}|2[0-4]\d|25[0-5])\.(\d|[1-9]\d|1\d{2}|2[0-4]\d|25[0-5])\.(\d|[1-9]\d|1\d{2}|2[0-4]\d|25[0-5])\.(\d|[1-9]\d|1\d{2}|2[0-4]\d|25[0-5]))|(([0-9a-f]{1,4}:){0,4}[0-9a-f]{1,4})?::([0-9a-f]{1,4}:[0-9a-f]{1,4}|(\d|[1-9]\d|1\d{2}|2[0-4]\d|25[0-5])\.(\d|[1-9]\d|1\d{2}|2[0-4]\d|25[0-5])\.(\d|[1-9]\d|1\d{2}|2[0-4]\d|25[0-5])\.(\d|[1-9]\d|1\d{2}|2[0-4]\d|25[0-5]))|(([0-9a-f]{1,4}:){0,5}[0-9a-f]{1,4})?::[0-9a-f]{1,4}|(([0-9a-f]{1,4}:){0,6}[0-9a-f]{1,4})?::|v[0-9a-f]+\.[!$&-.0-;=_a-z~]+)\]|(\d|[1-9]\d|1\d{2}|2[0-4]\d|25[0-5])\.(\d|[1-9]\d|1\d{2}|2[0-4]\d|25[0-5])\.(\d|[1-9]\d|1\d{2}|2[0-4]\d|25[0-5])\.(\d|[1-9]\d|1\d{2}|2[0-4]\d|25[0-5])|([-.0-9_a-z~]|%[0-9a-f][0-9a-f]|[!$&-,;=])*)(:\d*)?(/([-.0-9_a-z~]|%[0-9a-f][0-9a-f]|[!$&-,:;=@])*)*|/(([-.0-9_a-z~]|%[0-9a-f][0-9a-f]|[!$&-,:;=@])+(/([-.0-9_a-z~]|%[0-9a-f][0-9a-f]|[!$&-,:;=@])*)*)?|([-.0-9_a-z~]|%[0-9a-f][0-9a-f]|[!$&-,:;=@])+(/([-.0-9_a-z~]|%[0-9a-f][0-9a-f]|[!$&-,:;=@])*)*)?(\?([-.0-9_a-z~]|%[0-9a-f][0-9a-f]|[!$&-,/:;=?@])*)?(#([-.0-9_a-z~]|%[0-9a-f][0-9a-f]|[!$&-,/:;=?@])*)?'
 	
-	markdown
-		.gsub(/#{not_slash}(#{url_regexp})/i){"<a href=\"#{$1}\" class=\"outside-link\">#{$1}</a>"}
-		.gsub(/#{not_slash}\*\*(.+?)\*\*/){"<strong>#{$1}</strong>"}
-		.gsub(/#{not_slash}\*(.+?)\*/){"<em>#{$1}</em>"}
-		.gsub(/#{not_slash}__(.+?)__/){"<u>#{$1}</u>"}
-		.gsub(/#{not_slash}~~(.+?)~~/){"<s>#{$1}</s>"}
-		.gsub("\t"){" "*8}.gsub(/(?<!<a) /){"&nbsp;"}.gsub("\n"){"<br>"} # aタグの直後だけは除いてる・・・微妙すぎる対策・・・
-		.gsub(/\\([*_`~])/){$1}
+	s = StringScanner.new(markdown)
+	not_slash = /(?<!\\)/
+	multi_line = /(?:.|\n)+?/
+	html = ""
+	until s.eos?
+		html += case
+		when s.scan(/([^\\:*_~\s])+/) # 速度のために。URLはスキームの跡に着く`:`を見る。
+			s[0].html_escape
+		when s.scan(/\\([*_`~])/)
+			s[1]
+		when s.scan(/\n/)
+			"<br>"
+		when s.scan(/[ \t]+/)
+			"&nbsp"*s[0].gsub("\t"){" "*8}.length
+		when s.scan(/#{not_slash}(#{url_regexp})/i)
+			"<a href=\"#{s[1]}\" class=\"outside-link\">#{s[1]}</a>"
+		when s.scan(/#{not_slash}\*\*(#{multi_line})\*\*/)
+			"<strong>#{s[1]}</strong>"
+		when s.scan(/#{not_slash}\*(#{multi_line})\*/)
+			"<em>#{s[1].html_escape}</em>"
+		when s.scan(/#{not_slash}__(#{multi_line})__/)
+			"<u>#{s[1].html_escape}</u>"
+		when s.scan(/#{not_slash}~~(#{multi_line})~~/)
+			"<s>#{s[1].html_escape}</s>"
+		else
+			s.getch.html_escape
+		end
+	end
+	html
 end
 
 post "/post/" do
@@ -189,6 +210,7 @@ tt,code {font-family:Consolas,Liberation Mono,Menlo,Courier,monospace;font-size:
 tt,.code-box {border: 1px solid #555;}
 .select-list {margin:1em}
 .server-topic {margin-left:3em; margin-top:0em}
+.outside-link {background:#001}
 
 EOS
 ]
