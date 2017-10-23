@@ -117,7 +117,6 @@ def cleate_channel_main_html channel, server, before_id
 			# `-2`で、最後のメッセージが最初に来るように
 			"<a href=\"/channel/?channelid=#{channel.id}&beforeid=#{(messages[-2])? messages[-2].id : messages[-1].id}\">more</a>"
 		end
-	
 	post_form+timeline+next_link
 end
 
@@ -150,26 +149,27 @@ def markup_nonblock markdown
 	not_slash = /(?<!\\)/
 	multi_line = /(?:.|\n)+?/
 	html = ""
+	# かなりの回数呼ばれるため、正規表現には`o`オプションを付ける。
 	until s.eos?
 		html += case
-		when s.scan(/([^\\:*_~\s])+/) # 速度のために。URLはスキームの跡に着く`:`を見る。
+		when s.scan(/#{not_slash}(#{url_regexp})/io)
+			"<a href=\"#{s[1]}\" class=\"outside-link\">#{s[1]}</a>"
+		when s.scan(/[^*_~\s\\]+/) # 高速化
 			s[0].html_escape
-		when s.scan(/\\([*_`~])/)
-			s[1]
+		when s.scan(/#{not_slash}\*\*(#{multi_line})\*\*/o)
+			"<strong>#{s[1]}</strong>"
+		when s.scan(/#{not_slash}\*(#{multi_line})\*/o)
+			"<em>#{s[1].html_escape}</em>"
+		when s.scan(/#{not_slash}__(#{multi_line})__/o)
+			"<u>#{s[1].html_escape}</u>"
+		when s.scan(/#{not_slash}~~(#{multi_line})~~/o)
+			"<s>#{s[1].html_escape}</s>"
 		when s.scan(/\n/)
 			"<br>"
 		when s.scan(/[ \t]+/)
 			"&nbsp"*s[0].gsub("\t"){" "*8}.length
-		when s.scan(/#{not_slash}(#{url_regexp})/i)
-			"<a href=\"#{s[1]}\" class=\"outside-link\">#{s[1]}</a>"
-		when s.scan(/#{not_slash}\*\*(#{multi_line})\*\*/)
-			"<strong>#{s[1]}</strong>"
-		when s.scan(/#{not_slash}\*(#{multi_line})\*/)
-			"<em>#{s[1].html_escape}</em>"
-		when s.scan(/#{not_slash}__(#{multi_line})__/)
-			"<u>#{s[1].html_escape}</u>"
-		when s.scan(/#{not_slash}~~(#{multi_line})~~/)
-			"<s>#{s[1].html_escape}</s>"
+		when s.scan(/\\([*_`~])/)
+			s[1]
 		else
 			s.getch.html_escape
 		end
