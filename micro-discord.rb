@@ -16,7 +16,6 @@ require "escape"
 require "strscan"
 
 
-
 def body_part title, body_html
 	"<!DOCTYPE html><html lang=\"ja\"><head>"+
 		"<meta charset=\"UTF-8\"><title>#{title}</title><link href=\"/style.css\" rel=\"stylesheet\" type=\"text/css\"></head><body>"+
@@ -36,11 +35,30 @@ class String
 	end
 end
 
+
 bot = Discordrb::Bot.new(
 		token: token,
 		client_id: client_id)
-
 bot.run :async
+
+FutureStatus = Struct.new(:update_time, :status, :game)
+future_status = FutureStatus.new(Time.now, :invisible, nil)
+# 同期バグが起こる可能性はあるが、メイン部分ではないので許容する。
+Thread.start do
+	loop do
+		fs = future_status
+		# なにも入ってない時
+		if fs.nil?
+			sleep 1
+			next
+		end
+		now = Time.now
+		sleep fs.update_time-now if now<fs.update_time
+		next if fs!=future_status # もし更新されていたら戻る
+		bot.update_status(fs.status, fs.game, nil)
+		future_status = nil
+	end
+end
 
 set :bind, ipaddr
 
@@ -83,6 +101,15 @@ get "/channel/" do
 	if !before_id.nil? &&  channel.load_message(before_id).nil?
 		redirect to("/channel/?channelid=#{id}")
 	end
+	
+	# どこのチャンネルを見ているのかを表示させる
+	if before_id.nil?
+		bot.update_status(:online, "#{channel.name}を見ているかも", nil)
+	else
+		bot.update_status(:idle, "#{channel.name}の過去ログを見ているかも", nil)
+	end
+	future_status = FutureStatus.new(Time.now+60, :invisible, nil)
+	
 	main = cleate_channel_main_html(channel, server, before_id)
 	body_part(channel.name.html_escape,
 		"<h1><a href=\"/servers/\">servers</a> &gt; <a href=\"/server/?serverid=#{server.id.to_s}\">#{server.name.html_escape}</a> &gt; "+
