@@ -77,15 +77,15 @@ def markup_nonblock markdown
 		when s.scan(/#{not_slash}\*\*(#{multi_line})\*\*/o)
 			"<strong>#{s[1]}</strong>"
 		when s.scan(/#{not_slash}\*(#{multi_line})\*/o)
-			"<em>#{s[1].html_escape}</em>"
+			"<em>#{s[1]}</em>"
 		when s.scan(/#{not_slash}__(#{multi_line})__/o)
-			"<u>#{s[1].html_escape}</u>"
+			"<u>#{s[1]}</u>"
 		when s.scan(/#{not_slash}~~(#{multi_line})~~/o)
-			"<s>#{s[1].html_escape}</s>"
+			"<s>#{s[1]}</s>"
 		when s.scan(/\n/)
 			"<br>"
 		when s.scan(/[ \t]+/)
-			"&nbsp"*s[0].gsub("\t"){" "*8}.length
+			"&nbsp;"*s[0].gsub("\t"){" "*8}.length
 		when s.scan(/\\([*_`~])/)
 			s[1]
 		else
@@ -96,9 +96,7 @@ def markup_nonblock markdown
 end
 
 
-bot = Discordrb::Bot.new(
-		token: token,
-		client_id: client_id)
+bot = Discordrb::Bot.new(token: token, client_id: client_id)
 bot.run :async
 
 FutureStatus = Struct.new(:update_time, :status, :game)
