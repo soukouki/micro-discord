@@ -97,6 +97,10 @@ end
 
 
 bot = Discordrb::Bot.new(token: token, client_id: client_id)
+bot.ready{|e|
+	puts "ネット回復時、自動的に表示されるので、それの対策"
+	bot.invisible
+}
 bot.run :async
 
 FutureStatus = Struct.new(:update_time, :status, :game)
