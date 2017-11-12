@@ -2,11 +2,9 @@
 
 # 引数の処理、開くファイルなどの情報を出力する。
 # discordrbがロード時に出力してしまうので、その前に
-puts "micro_discord [token] [client_id] [ipaddr]"
+puts "micro_discord [token] [ipaddr]"
 token = ARGV[0]
-client_id = ARGV[1].to_i
-ipaddr = ARGV[2]
-puts "\nhttps://discordapp.com/oauth2/authorize?client_id=#{client_id}&scope=bot&permissions=3072"
+ipaddr = ARGV[1]
 puts "\nhttp://#{ipaddr}:4567"
 print "\n\n"
 
@@ -96,7 +94,7 @@ def markup_nonblock markdown
 end
 
 
-bot = Discordrb::Bot.new(token: token, client_id: client_id)
+bot = Discordrb::Bot.new(token: token, type: :user)
 bot.ready{|e|
 	puts "ネット回復時、自動的に表示されるので、それの対策"
 	bot.invisible
