@@ -95,30 +95,6 @@ end
 
 
 bot = Discordrb::Bot.new(token: token, type: :user)
-bot.ready{|e|
-	puts "ネット回復時、自動的に表示されるので、それの対策"
-	bot.invisible
-}
-bot.run :async
-
-FutureStatus = Struct.new(:update_time, :status, :game)
-future_status = FutureStatus.new(Time.now, :invisible, nil)
-# 同期バグが起こる可能性はあるが、メイン部分ではないので許容する。
-Thread.start do
-	loop do
-		fs = future_status
-		# なにも入ってない時
-		if fs.nil?
-			sleep 10
-			next
-		end
-		now = Time.now
-		sleep fs.update_time-now if now<fs.update_time
-		next if fs!=future_status # もし更新されていたら戻る
-		bot.update_status(fs.status, fs.game, nil)
-		future_status = nil
-	end
-end
 
 set :bind, ipaddr
 
@@ -127,19 +103,23 @@ get "/" do
 end
 
 get "/servers/" do
-	body_part("servers",
+	bot.run :async
+	html = body_part("servers",
 		"<h1>micro discord</h1>"+
 		create_select_html("/server/?serverid=", bot.servers.map{|s|[s[0], s[1].name.html_escape]}.to_h))
+	bot.stop
+	html
 end
 
 get "/server/" do
+	bot.run :async
 	id = request.params["serverid"].to_i
 	begin
 		server = bot.server(id)
 	rescue Discordrb::Errors::NoPermission
 		redirect to("/servers/")
 	end
-	body_part(server.name.html_escape,
+	html = body_part(server.name.html_escape,
 		"<h1><a href=\"/servers/\">servers</a> &gt; #{server.name.html_escape}</h1>"+
 			create_select_html("/channel/?channelid=",
 				server.text_channels
@@ -148,9 +128,12 @@ get "/server/" do
 							"<div class=\"server-topic\">#{c.topic.html_escape.gsub(/\n+/){"<br>"}}</div>"
 						[c.id, c.name.html_escape+topic]
 					end.to_h))
+	bot.stop
+	html
 end
 
 get "/channel/" do
+	bot.run :async
 	id = request.params["channelid"].to_i
 	channel = bot.channel(id)
 	if channel.nil?
@@ -158,24 +141,15 @@ get "/channel/" do
 	end
 	server = channel.server
 	before_id = (request.params.keys.include?("beforeid"))? request.params["beforeid"] : nil
-	if !before_id.nil? &&  channel.load_message(before_id).nil?
-		redirect to("/channel/?channelid=#{id}")
-	end
-	
-	# どこのチャンネルを見ているのかを表示させる
-	if before_id.nil?
-		bot.update_status(:online, "#{channel.name}を見ているかも", nil)
-	else
-		bot.update_status(:idle, "#{channel.name}の過去ログを見ているかも", nil)
-	end
-	future_status = FutureStatus.new(Time.now+60, :invisible, nil)
 	
 	main = cleate_channel_main_html(channel, server, before_id)
-	body_part(channel.name.html_escape,
+	html = body_part(channel.name.html_escape,
 		"<h1><a href=\"/servers/\">servers</a> &gt; <a href=\"/server/?serverid=#{server.id.to_s}\">#{server.name.html_escape}</a> &gt; "+
 			"<a href=\"/channel/?channelid=#{id}\">#{channel.name.html_escape}</a></h1>"+
 				"#{(channel.topic.nil?)? "" : "<p>#{channel.topic.html_escape}</p>"}"+
 		+main)
+	bot.stop
+	html
 end
 
 def cleate_channel_main_html channel, server, before_id
