@@ -1,4 +1,4 @@
-﻿# encoding: UTF-8
+# encoding: UTF-8
 
 # 引数の処理、開くファイルなどの情報を出力する。
 # discordrbがロード時に出力してしまうので、その前に
@@ -16,6 +16,26 @@ require "escape"
 require "strscan"
 
 
+# モンキーパッチなので、適用範囲を制限したほうが良いが、小さいプログラムなのでとりあえずこのままで。
+class String
+	def html_escape
+		Escape.html_text(self)
+	end
+end
+
+def startup_bot bot, &block
+	create_html = Thread.new{
+		Thread.stop
+		bot.servers.values.map(&:name).map{|n|"<p>"+n+"</p>"}.join("")
+		block.call
+	}
+	handle = bot.ready{create_html.run}
+	bot.run :async
+	create_html.join
+	Thread.new{bot.stop}
+	create_html.value
+end
+
 # headなどの共通化のため。
 def body_part title, body_html
 	"<!DOCTYPE html><html lang=\"ja\"><head>"+
@@ -23,17 +43,10 @@ def body_part title, body_html
 	body_html+"</body></html>"
 end
 
-# param:hash {"id":value}
+# param@hash {"id":value}
 def create_select_html to_uri, hash
 	'<div class="select-list">'+
 		hash.map{|key, value|'<a href="'+to_uri+key.to_s+'">'+value+'</a><br>'}.join("")+"</div>"
-end
-
-# モンキーパッチなので、適用範囲を制限したほうが良いが、小さいプログラムなのでとりあえずこのままで。
-class String
-	def html_escape
-		Escape.html_text(self)
-	end
 end
 
 # ```__***~~test~~***__``` こんなのに備えて。
@@ -93,7 +106,7 @@ def markup_nonblock markdown
 	html
 end
 
-
+# アクセスがない時の処理を軽くするためにアクセスがあったときのみつなぐ
 bot = Discordrb::Bot.new(token: token, type: :user)
 
 set :bind, ipaddr
@@ -103,53 +116,51 @@ get "/" do
 end
 
 get "/servers/" do
-	bot.run :async
-	html = body_part("servers",
-		"<h1>micro discord</h1>"+
-		create_select_html("/server/?serverid=", bot.servers.map{|s|[s[0], s[1].name.html_escape]}.to_h))
-	bot.stop
-	html
+	startup_bot(bot){
+		body_part("servers",
+			"<h1>micro discord</h1>"+
+			create_select_html("/server/?serverid=", bot.servers.map{|s|[s[0], s[1].name.html_escape]}.to_h))
+	}
 end
 
 get "/server/" do
-	bot.run :async
-	id = request.params["serverid"].to_i
-	begin
-		server = bot.server(id)
-	rescue Discordrb::Errors::NoPermission
-		redirect to("/servers/")
-	end
-	html = body_part(server.name.html_escape,
-		"<h1><a href=\"/servers/\">servers</a> &gt; #{server.name.html_escape}</h1>"+
-			create_select_html("/channel/?channelid=",
-				server.text_channels
-					.map do |c|
-						topic = (c.topic.nil? || c.topic.empty?)? "" :
-							"<div class=\"server-topic\">#{c.topic.html_escape.gsub(/\n+/){"<br>"}}</div>"
-						[c.id, c.name.html_escape+topic]
-					end.to_h))
-	bot.stop
-	html
+	startup_bot(bot){
+		id = request.params["serverid"].to_i
+		begin
+			server = bot.server(id)
+		rescue Discordrb::Errors::NoPermission
+			redirect to("/servers/")
+			next
+		end
+		body_part(server.name.html_escape,
+			"<h1><a href=\"/servers/\">servers</a> &gt; #{server.name.html_escape}</h1>"+
+				create_select_html("/channel/?channelid=",
+					server.text_channels
+						.map do |c|
+							topic = (c.topic.nil? || c.topic.empty?)? "" :
+								"<div class=\"server-topic\">#{c.topic.html_escape.gsub(/\n+/){"<br>"}}</div>"
+							[c.id, c.name.html_escape+topic]
+						end.to_h))
+	}
 end
 
 get "/channel/" do
-	bot.run :async
-	id = request.params["channelid"].to_i
-	channel = bot.channel(id)
-	if channel.nil?
-		redirect to("/servers/")
-	end
-	server = channel.server
-	before_id = (request.params.keys.include?("beforeid"))? request.params["beforeid"] : nil
-	
-	main = cleate_channel_main_html(channel, server, before_id)
-	html = body_part(channel.name.html_escape,
-		"<h1><a href=\"/servers/\">servers</a> &gt; <a href=\"/server/?serverid=#{server.id.to_s}\">#{server.name.html_escape}</a> &gt; "+
-			"<a href=\"/channel/?channelid=#{id}\">#{channel.name.html_escape}</a></h1>"+
-				"#{(channel.topic.nil?)? "" : "<p>#{channel.topic.html_escape}</p>"}"+
-		+main)
-	bot.stop
-	html
+	startup_bot(bot){
+		id = request.params["channelid"].to_i
+		channel = bot.channel(id)
+		if channel.nil?
+			redirect to("/servers/")
+		end
+		server = channel.server
+		before_id = (request.params.keys.include?("beforeid"))? request.params["beforeid"] : nil
+		
+		main = cleate_channel_main_html(channel, server, before_id)
+		body_part(channel.name.html_escape,
+			"<h1><a href=\"/servers/\">servers</a> &gt; <a href=\"/server/?serverid=#{server.id.to_s}\">#{server.name.html_escape}</a> &gt; "+
+				"<a href=\"/channel/?channelid=#{id}\">#{channel.name.html_escape}</a></h1>"+
+					"#{(channel.topic.nil?)? "" : "<p>#{channel.topic.html_escape}</p>"}"+
+			+main)
+	}
 end
 
 def cleate_channel_main_html channel, server, before_id
@@ -182,19 +193,21 @@ def cleate_channel_main_html channel, server, before_id
 end
 
 post "/post/" do
-	id = request.params["channelid"].to_i
-	channel = bot.channel(id)
-	redirect to("/servers/") if channel.nil?
-	text = request.params["text"]
-	if text.empty?
+	startup_bot(bot){
+		id = request.params["channelid"].to_i
+		channel = bot.channel(id)
+		redirect to("/servers/") if channel.nil?
+		text = request.params["text"]
+		if text.empty?
+			redirect to("/channel/?channelid=#{id}/")
+		end
+		begin
+			channel.send_message(text)
+		rescue Discordrb::Errors::NoPermission
+			next body_part("NoParmission Error", "<p>投稿する権限がありません。</p><a href=\"/channel/?channelid=#{id}\">#{channel.name.html_escape}")
+		end
 		redirect to("/channel/?channelid=#{id}/")
-	end
-	begin
-		channel.send_message(text)
-	rescue Discordrb::Errors::NoPermission
-		return body_part("NoParmission Error", "<p>投稿する権限がありません。</p><a href=\"/channel/?channelid=#{id}\">#{channel.name.html_escape}")
-	end
-	redirect to("/channel/?channelid=#{id}/")
+	}
 end
 
 not_found do
