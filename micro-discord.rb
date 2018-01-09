@@ -26,7 +26,6 @@ end
 def startup_bot bot, &block
 	create_html = Thread.new{
 		Thread.stop
-		bot.servers.values.map(&:name).map{|n|"<p>"+n+"</p>"}.join("")
 		block.call
 	}
 	handle = bot.ready{create_html.run}
