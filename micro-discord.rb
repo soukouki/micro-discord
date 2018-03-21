@@ -21,18 +21,10 @@ class String
 	def html_escape
 		Escape.html_text(self)
 	end
-end
-
-def startup_bot bot, &block
-	create_html = Thread.new{
-		Thread.stop
-		block.call
-	}
-	handle = bot.ready{create_html.run}
-	bot.run :async
-	create_html.join
-	Thread.new{bot.stop}
-	create_html.value
+	def unindent
+		min_space_num = self.split("\n").delete_if{|s|s=~/^\s*$/}.map{|s|s[/^\s+/].length}.min
+		gsub(/^[ \t]{,#{min_space_num}}/, '')
+	end
 end
 
 # headなどの共通化のため。
@@ -69,11 +61,8 @@ def markup markdown
 end
 
 def markup_nonblock markdown
-	# http://sinya8282.sakura.ne.jp/?p=1064 より
-	
-	url_regexp =  '[a-z][-+.0-9a-z]*:(//(([-.0-9_a-z~]|%[0-9a-f][0-9a-f]|[!$&-,:;=])*@)?(\[(([0-9a-f]{1,4}:){6}([0-9a-f]{1,4}:[0-9a-f]{1,4}|(\d|[1-9]\d|1\d{2}|2[0-4]\d|25[0-5])\.(\d|[1-9]\d|1\d{2}|2[0-4]\d|25[0-5])\.(\d|[1-9]\d|1\d{2}|2[0-4]\d|25[0-5])\.(\d|[1-9]\d|1\d{2}|2[0-4]\d|25[0-5]))|::([0-9a-f]{1,4}:){5}([0-9a-f]{1,4}:[0-9a-f]{1,4}|(\d|[1-9]\d|1\d{2}|2[0-4]\d|25[0-5])\.(\d|[1-9]\d|1\d{2}|2[0-4]\d|25[0-5])\.(\d|[1-9]\d|1\d{2}|2[0-4]\d|25[0-5])\.(\d|[1-9]\d|1\d{2}|2[0-4]\d|25[0-5]))|([0-9a-f]{1,4})?::([0-9a-f]{1,4}:){4}([0-9a-f]{1,4}:[0-9a-f]{1,4}|(\d|[1-9]\d|1\d{2}|2[0-4]\d|25[0-5])\.(\d|[1-9]\d|1\d{2}|2[0-4]\d|25[0-5])\.(\d|[1-9]\d|1\d{2}|2[0-4]\d|25[0-5])\.(\d|[1-9]\d|1\d{2}|2[0-4]\d|25[0-5]))|(([0-9a-f]{1,4}:)?[0-9a-f]{1,4})?::([0-9a-f]{1,4}:){3}([0-9a-f]{1,4}:[0-9a-f]{1,4}|(\d|[1-9]\d|1\d{2}|2[0-4]\d|25[0-5])\.(\d|[1-9]\d|1\d{2}|2[0-4]\d|25[0-5])\.(\d|[1-9]\d|1\d{2}|2[0-4]\d|25[0-5])\.(\d|[1-9]\d|1\d{2}|2[0-4]\d|25[0-5]))|(([0-9a-f]{1,4}:){0,2}[0-9a-f]{1,4})?::([0-9a-f]{1,4}:){2}([0-9a-f]{1,4}:[0-9a-f]{1,4}|(\d|[1-9]\d|1\d{2}|2[0-4]\d|25[0-5])\.(\d|[1-9]\d|1\d{2}|2[0-4]\d|25[0-5])\.(\d|[1-9]\d|1\d{2}|2[0-4]\d|25[0-5])\.(\d|[1-9]\d|1\d{2}|2[0-4]\d|25[0-5]))|(([0-9a-f]{1,4}:){0,3}[0-9a-f]{1,4})?::[0-9a-f]{1,4}:([0-9a-f]{1,4}:[0-9a-f]{1,4}|(\d|[1-9]\d|1\d{2}|2[0-4]\d|25[0-5])\.(\d|[1-9]\d|1\d{2}|2[0-4]\d|25[0-5])\.(\d|[1-9]\d|1\d{2}|2[0-4]\d|25[0-5])\.(\d|[1-9]\d|1\d{2}|2[0-4]\d|25[0-5]))|(([0-9a-f]{1,4}:){0,4}[0-9a-f]{1,4})?::([0-9a-f]{1,4}:[0-9a-f]{1,4}|(\d|[1-9]\d|1\d{2}|2[0-4]\d|25[0-5])\.(\d|[1-9]\d|1\d{2}|2[0-4]\d|25[0-5])\.(\d|[1-9]\d|1\d{2}|2[0-4]\d|25[0-5])\.(\d|[1-9]\d|1\d{2}|2[0-4]\d|25[0-5]))|(([0-9a-f]{1,4}:){0,5}[0-9a-f]{1,4})?::[0-9a-f]{1,4}|(([0-9a-f]{1,4}:){0,6}[0-9a-f]{1,4})?::|v[0-9a-f]+\.[!$&-.0-;=_a-z~]+)\]|(\d|[1-9]\d|1\d{2}|2[0-4]\d|25[0-5])\.(\d|[1-9]\d|1\d{2}|2[0-4]\d|25[0-5])\.(\d|[1-9]\d|1\d{2}|2[0-4]\d|25[0-5])\.(\d|[1-9]\d|1\d{2}|2[0-4]\d|25[0-5])|([-.0-9_a-z~]|%[0-9a-f][0-9a-f]|[!$&-,;=])*)(:\d*)?(/([-.0-9_a-z~]|%[0-9a-f][0-9a-f]|[!$&-,:;=@])*)*|/(([-.0-9_a-z~]|%[0-9a-f][0-9a-f]|[!$&-,:;=@])+(/([-.0-9_a-z~]|%[0-9a-f][0-9a-f]|[!$&-,:;=@])*)*)?|([-.0-9_a-z~]|%[0-9a-f][0-9a-f]|[!$&-,:;=@])+(/([-.0-9_a-z~]|%[0-9a-f][0-9a-f]|[!$&-,:;=@])*)*)?(\?([-.0-9_a-z~]|%[0-9a-f][0-9a-f]|[!$&-,/:;=?@])*)?(#([-.0-9_a-z~]|%[0-9a-f][0-9a-f]|[!$&-,/:;=?@])*)?'
-	
 	s = StringScanner.new(markdown)
+	url_regexp =  /(https?:\/\/[-_.!~*\'()a-zA-Z0-9;\/?:@&=+$,%#]+)/
 	not_slash = /(?<!\\)/
 	multi_line = /(?:.|\n)+?/
 	html = ""
@@ -107,6 +96,25 @@ end
 
 # アクセスがない時の処理を軽くするためにアクセスがあったときのみつなぐ
 bot = Discordrb::Bot.new(token: token, type: :user)
+
+def startup_bot bot, &block
+	# もしもbotが動いたままになっていた場合の処理
+	if bot.connected?
+		value = block.call
+		Thread.new{bot.stop}
+		return value
+	end
+	# ブロックの処理を含めたスレッドを作成
+	create_html = Thread.new{
+		Thread.stop
+		block.call
+	}
+	handle = bot.ready{create_html.run}
+	bot.run :async # readyを経由してブロックを実行
+	create_html.join # ブロックが終了するのを待つ
+	Thread.new{bot.stop}
+	create_html.value
+end
 
 set :bind, ipaddr
 
@@ -214,20 +222,41 @@ not_found do
 end
 
 # デザイン初心者です。いいデザイン案があるなら、https://github.com/soukouki/micro-discord にプルリクエストをください。
+# 色については、https://discordapp.com/brandingを参考にしています。
 get "/style.css" do
-	[200, {"Content-Type" => "text/css"}, <<"EOS"
-
-body { background:#111; color:#eee;}
-a {color:#0af;}
-em {font-style:oblique;}
-pre {margin-left: 2em;}
-textarea {background:#333; color:#eee;}
-tt,code {font-family:Consolas,Liberation Mono,Menlo,Courier,monospace;font-size:85%;}
-tt,.code-box {border: 1px solid #555;}
-.select-list {margin:1em}
-.server-topic {margin-left:3em; margin-top:0em}
-.outside-link {background:#001}
-
-EOS
+	[200, {"Content-Type" => "text/css"}, <<-EOS.unindent
+		body {
+			background:#202225;
+			color:#FFFFFF;
+		}
+		a {
+			color:#7289DA;
+		}
+		em {
+			font-style:oblique;
+		}
+		pre {
+			margin-left: 2em;
+		}
+		textarea {
+			background:#2C2F33;
+			color:#eee;
+		}
+		tt,code {
+			font-family:Consolas,Liberation Mono,Menlo,Courier,monospace;
+			font-size:85%;
+		}
+		tt,.code-box {
+			border: 1px solid #2C2F33;
+		}
+		.select-list {
+			margin:1em
+		}
+		.server-topic {
+			margin-left:3em; margin-top:0em
+		}
+		.outside-link {
+		}
+		EOS
 ]
 end
