@@ -96,24 +96,60 @@ end
 
 # アクセスがない時の処理を軽くするためにアクセスがあったときのみつなぐ
 bot = Discordrb::Bot.new(token: token, type: :user)
+DISCORD_CONNECT_TIME = 60 # second
+
+# botの停止作業
+Thread.new do
+	discord_latest_access_time = Time.now - DISCORD_CONNECT_TIME
+	loop do
+		p :main_loop_start
+		# botをストップする時間まで待つ。
+		loop do
+			p :sleep_loop_start
+			if discord_latest_access_time+DISCORD_CONNECT_TIME > Time.now
+				p :sleep__
+				sleep_time = (discord_latest_access_time+DISCORD_CONNECT_TIME)-Time.now
+				Discordrb::LOGGER.info "bot_stop sleep #{sleep_time}"
+				sleep sleep_time
+				p :redo
+				redo
+			end
+			p :break
+			break
+		end
+		# スレッド間でのタイミング合わせのため
+		ready_waiting = Thread.new do
+			Thread.stop
+			discord_latest_access_time = Time.now # よくわかってないけどとりあえずつけたら動いた
+			p :ready_waiting_end
+		end
+		# 起動時にまたループに戻るために登録
+		ready_event_handle = bot.ready do
+			p :ready_firing
+			bot.remove_handler ready_event_handle
+			ready_waiting.run
+		end
+		# botを停止
+		p :bot_stop
+		bot.stop if bot.connected?
+		# readyイベントが発火されるまで待つ
+		ready_waiting.join
+	end
+end
 
 def startup_bot bot, &block
-	# もしもbotが動いたままになっていた場合の処理
+	discord_latest_access_time = Time.now
 	if bot.connected?
-		value = block.call
-		Thread.new{bot.stop}
-		return value
+		return block.call
 	end
 	# ブロックの処理を含めたスレッドを作成
 	create_html = Thread.new{
 		Thread.stop
 		block.call
 	}
-	handle = bot.ready{create_html.run}
+	bot.ready{create_html.run}
 	bot.run :async # readyを経由してブロックを実行
-	create_html.join # ブロックが終了するのを待つ
-	Thread.new{bot.stop}
-	create_html.value
+	create_html.join
 end
 
 set :bind, ipaddr
