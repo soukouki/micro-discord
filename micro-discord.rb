@@ -97,40 +97,31 @@ end
 # アクセスがない時の処理を軽くするためにアクセスがあったときのみつなぐ
 bot = Discordrb::Bot.new(token: token, type: :user)
 DISCORD_CONNECT_TIME = 60 # second
+$discord_latest_access_time = Time.now - DISCORD_CONNECT_TIME
 
 # botの停止作業
 Thread.new do
-	discord_latest_access_time = Time.now - DISCORD_CONNECT_TIME
 	loop do
-		p :main_loop_start
 		# botをストップする時間まで待つ。
 		loop do
-			p :sleep_loop_start
-			if discord_latest_access_time+DISCORD_CONNECT_TIME > Time.now
-				p :sleep__
-				sleep_time = (discord_latest_access_time+DISCORD_CONNECT_TIME)-Time.now
+			if $discord_latest_access_time+DISCORD_CONNECT_TIME > Time.now
+				sleep_time = ($discord_latest_access_time+DISCORD_CONNECT_TIME)-Time.now
 				Discordrb::LOGGER.info "bot_stop sleep #{sleep_time}"
 				sleep sleep_time
-				p :redo
 				redo
 			end
-			p :break
 			break
 		end
 		# スレッド間でのタイミング合わせのため
 		ready_waiting = Thread.new do
 			Thread.stop
-			discord_latest_access_time = Time.now # よくわかってないけどとりあえずつけたら動いた
-			p :ready_waiting_end
 		end
 		# 起動時にまたループに戻るために登録
 		ready_event_handle = bot.ready do
-			p :ready_firing
 			bot.remove_handler ready_event_handle
 			ready_waiting.run
 		end
 		# botを停止
-		p :bot_stop
 		bot.stop if bot.connected?
 		# readyイベントが発火されるまで待つ
 		ready_waiting.join
@@ -138,7 +129,7 @@ Thread.new do
 end
 
 def startup_bot bot, &block
-	discord_latest_access_time = Time.now
+	$discord_latest_access_time = Time.now
 	if bot.connected?
 		return block.call
 	end
